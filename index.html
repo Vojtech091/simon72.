@@ -1,0 +1,935 @@
+<html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interaktivní mapa světa</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --success-color: #2ecc71;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            color: white;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+
+        .world-map-container {
+            position: relative;
+            width: 100%;
+            height: 700px;
+            background-image: url(https://img.freepik.com/vector-premium/mapa-mundo-contorno-fronteras-paises_47243-1545.jpg);
+            background-size: cover;
+            border: 3px solid var(--secondary-color);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: block;
+        }
+
+        .continent {
+            position: absolute;
+            padding: 12px 20px;
+            background-color: rgba(52, 152, 219, 0.85);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            min-width: 140px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .continent:hover {
+            background-color: rgba(41, 128, 185, 0.95);
+            transform: scale(1.15);
+            z-index: 20;
+        }
+
+        #north-america { top: 38%; left: 15%; }
+        #south-america { top: 70%; left: 30%; }
+        #europe { top: 33%; left: 45%; }
+        #africa { top: 55%; left: 45%; }
+        #asia { top: 38%; left: 63%; }
+        #australia { top: 68%; left: 75%; }
+        #antarctica { top: 92%; left: 45%; width: 160px; }
+
+        #north-america-map {
+            height: 600px;
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .info-panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.3);
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            cursor: pointer;
+            font-size: 28px;
+            color: #7f8c8d;
+            background: none;
+            border: none;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-btn:hover {
+            color: #e74c3c;
+            background-color: rgba(231, 76, 60, 0.1);
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            white-space: nowrap;
+        }
+
+        .stat-box {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            min-width: 150px;
+        }
+
+        .stat-box h3 {
+            margin: 0 0 5px 0;
+            color: #3498db;
+            font-size: 1em;
+        }
+
+        .stat-box p {
+            margin: 0;
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #34495e;
+        }
+
+        .country-list {
+            columns: 3;
+            column-gap: 20px;
+            white-space: nowrap;
+        }
+
+        .info-content {
+            max-height: calc(90vh - 150px);
+            overflow-x: auto;
+            overflow-y: auto;
+            padding-right: 15px;
+        }
+
+        .info-content::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .info-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .info-content::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 10px;
+        }
+
+        .fun-fact {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-left: 4px solid #2ecc71;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+            white-space: normal;
+        }
+
+        .fun-fact h4 {
+            margin-top: 0;
+            color: #2ecc71;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            white-space: normal;
+        }
+
+        .continent-flag {
+            height: 80px;
+            border: 1px solid #ddd;
+            margin-right: 20px;
+        }
+
+        .timeline {
+            margin: 25px 0;
+            padding-left: 20px;
+            border-left: 3px solid #3498db;
+            white-space: normal;
+        }
+
+        .timeline-event {
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .timeline-event:before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 3px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3498db;
+        }
+
+        .timeline-year {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 16px;
+            font-weight: bold;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background-color: #27ae60;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.2em; }
+            .world-map-container { height: 500px; }
+            #north-america-map { height: 500px; }
+            .country-list { columns: 2; }
+            .info-panel { width: 95%; padding: 20px; }
+            .header-content { flex-direction: column; align-items: flex-start; }
+            .continent-flag { margin-bottom: 15px; margin-right: 0; }
+            .back-btn { padding: 8px 15px; font-size: 14px; }
+        }
+
+        @media (max-width: 576px) {
+            h1 { font-size: 1.8em; }
+            .subtitle { font-size: 1em; }
+            .world-map-container { height: 400px; }
+            #north-america-map { height: 400px; }
+            .country-list { columns: 1; }
+            .stats-container { grid-template-columns: 1fr; }
+            .info-panel { width: 98%; padding: 15px; }
+            .info-panel h2 { font-size: 1.6em; }
+            .back-btn { padding: 6px 12px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><i class="fas fa-globe-americas"></i> Interaktivní mapa světa</h1>
+            <div class="subtitle">Prozkoumejte kontinenty a země světa - klikněte na kontinent</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <button id="backBtn" class="back-btn"><i class="fas fa-arrow-left"></i> Zpět na svět</button>
+        <div class="world-map-container" id="world-map">
+            <div class="continent" id="north-america" onclick="showNorthAmericaMap()">
+                <i class="fas fa-mountain"></i> Severní Amerika
+            </div>
+            <div class="continent" id="south-america" onclick="showInfo('south-america')">
+                <i class="fas fa-umbrella-beach"></i> Jižní Amerika
+            </div>
+            <div class="continent" id="europe" onclick="showInfo('europe')">
+                <i class="fas fa-landmark"></i> Evropa
+            </div>
+            <div class="continent" id="africa" onclick="showInfo('africa')">
+                <i class="fas fa-sun"></i> Afrika
+            </div>
+            <div class="continent" id="asia" onclick="showInfo('asia')">
+                <i class="fas fa-dragon"></i> Asie
+            </div>
+            <div class="continent" id="australia" onclick="showInfo('australia')">
+                <i class="fas fa-kiwi-bird"></i> Austrálie
+            </div>
+            <div class="continent" id="antarctica" onclick="showInfo('antarctica')">
+                <i class="fas fa-icicles"></i> Antarktida
+            </div>
+
+            <div class="info-panel" id="north-america-info">
+                <button class="close-btn" onclick="hideInfo()">×</button>
+                <div class="info-content">
+                    <h2><i class="fas fa-mountain"></i> Severní Amerika</h2>
+                    <div class="header-content">
+                        <img src="https://flagcdn.com/w320/ca.png" alt="North America flag" class="continent-flag">
+                        <p>Severní Amerika je třetím největším kontinentem, známým svou rozmanitou geografií a kulturou.</p>
+                    </div>
+                    <div class="stats-container">
+                        <div class="stat-box">
+                            <h3>Rozloha</h3>
+                            <p>24,709,000 km²</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet obyvatel</h3>
+                            <p>~592 milionů</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet zemí</h3>
+                            <p>23</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Klima</h3>
+                            <p>Arktické až tropické</p>
+                        </div>
+                    </div>
+                    <div class="fun-fact">
+                        <h4><i class="fas fa-lightbulb"></i> Zajímavost</h4>
+                        <p>Severní Amerika má nejdelší říční systém na světě - Mississippi-Missouri.</p>
+                    </div>
+                    <p>Severní Amerika zahrnuje rozmanité ekosystémy od arktických tundr Kanady po tropické deštné pralesy Střední Ameriky. Je domovem velkých jezer, Skalnatých hor a ekonomických velmocí jako USA a Kanada.</p>
+                    <ul class="country-list">
+                        <li>Kanada</li>
+                        <li>USA</li>
+                        <li>Mexiko</li>
+                        <li>Guatemala</li>
+                        <li>Kuba</li>
+                        <li>Haiti</li>
+                        <li>Dominikánská republika</li>
+                        <li>Honduras</li>
+                    </ul>
+                    <div class="timeline">
+                        <h4><i class="fas fa-history"></i> Historické milníky</h4>
+                        <div class="timeline-event"><span class="timeline-year">1492:</span> Objevení Ameriky Kryštofem Kolumbem</div>
+                        <div class="timeline-event"><span class="timeline-year">1776:</span> Deklarace nezávislosti USA</div>
+                        <div class="timeline-event"><span class="timeline-year">1867:</span> Vznik Kanadské konfederace</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel" id="south-america-info">
+                <button class="close-btn" onclick="hideInfo()">×</button>
+                <div class="info-content">
+                    <h2><i class="fas fa-umbrella-beach"></i> Jižní Amerika</h2>
+                    <div class="header-content">
+                        <img src="https://flagcdn.com/w320/br.png" alt="South America flag" class="continent-flag">
+                        <p>Jižní Amerika je známá svými amazonskými pralesy a kulturou latinské Ameriky.</p>
+                    </div>
+                    <div class="stats-container">
+                        <div class="stat-box">
+                            <h3>Rozloha</h3>
+                            <p>17,840,000 km²</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet obyvatel</h3>
+                            <p>~423 milionů</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet zemí</h3>
+                            <p>12</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Klima</h3>
+                            <p>Tropické až subantarktické</p>
+                        </div>
+                    </div>
+                    <div class="fun-fact">
+                        <h4><i class="fas fa-lightbulb"></i> Zajímavost</h4>
+                        <p>Amazonka je největší řekou na světě podle objemu vody.</p>
+                    </div>
+                    <p>Jižní Amerika je domovem And, nejdelšího horského pásma na světě, a bohaté biodiverzity. Kulturně je ovlivněna španělskými a portugalskými kolonizacemi.</p>
+                    <ul class="country-list">
+                        <li>Brazílie</li>
+                        <li>Argentina</li>
+                        <li>Chile</li>
+                        <li>Peru</li>
+                        <li>Kolumbie</li>
+                        <li>Venezuela</li>
+                        <li>Ekvádor</li>
+                        <li>Bolívie</li>
+                    </ul>
+                    <div class="timeline">
+                        <h4><i class="fas fa-history"></i> Historické milníky</h4>
+                        <div class="timeline-event"><span class="timeline-year">1532:</span> Španělská conquista Incké říše</div>
+                        <div class="timeline-event"><span class="timeline-year">1810:</span> Začátek válek za nezávislost</div>
+                        <div class="timeline-event"><span class="timeline-year">1822:</span> Nezávislost Brazílie</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel" id="europe-info">
+                <button class="close-btn" onclick="hideInfo()">×</button>
+                <div class="info-content">
+                    <h2><i class="fas fa-landmark"></i> Evropa</h2>
+                    <div class="header-content">
+                        <img src="https://flagcdn.com/w320/eu.png" alt="Europe flag" class="continent-flag">
+                        <p>Evropa je kolébkou západní civilizace s bohatou historií a kulturou.</p>
+                    </div>
+                    <div class="stats-container">
+                        <div class="stat-box">
+                            <h3>Rozloha</h3>
+                            <p>10,180,000 km²</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet obyvatel</h3>
+                            <p>~746 milionů</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet zemí</h3>
+                            <p>44</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Klima</h3>
+                            <p>Mírné až kontinentální</p>
+                        </div>
+                    </div>
+                    <div class="fun-fact">
+                        <h4><i class="fas fa-lightbulb"></i> Zajímavost</h4>
+                        <p>Evropa má nejvíce památek UNESCO na světě.</p>
+                    </div>
+                    <p>Evropa je známá svými historickými městy, jako je Řím a Paříž, a politickou integrací prostřednictvím Evropské unie.</p>
+                    <ul class="country-list">
+                        <li>Česko</li>
+                        <li>Německo</li>
+                        <li>Francie</li>
+                        <li>Itálie</li>
+                        <li>Španělsko</li>
+                        <li>Polsko</li>
+                        <li>Ukrajina</li>
+                        <li>Rusko (evropská část)</li>
+                    </ul>
+                    <div class="timeline">
+                        <h4><i class="fas fa-history"></i> Historické milníky</h4>
+                        <div class="timeline-event"><span class="timeline-year">476:</span> Pád Západořímské říše</div>
+                        <div class="timeline-event"><span class="timeline-year">1453:</span> Pád Konstantinopole</div>
+                        <div class="timeline-event"><span class="timeline-year">1957:</span> Založení Evropského hospodářského společenství</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel" id="africa-info">
+                <button class="close-btn" onclick="hideInfo()">×</button>
+                <div class="info-content">
+                    <h2><i class="fas fa-sun"></i> Afrika</h2>
+                    <div class="header-content">
+                        <img src="https://flagcdn.com/w320/za.png" alt="Africa flag" class="continent-flag">
+                        <p>Afrika je druhým největším kontinentem s bohatou biodiverzitou a kulturou.</p>
+                    </div>
+                    <div class="stats-container">
+                        <div class="stat-box">
+                            <h3>Rozloha</h3>
+                            <p>30,370,000 km²</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet obyvatel</h3>
+                            <p>~1.4 miliardy</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet zemí</h3>
+                            <p>54</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Klima</h3>
+                            <p>Tropické až pouštní</p>
+                        </div>
+                    </div>
+                    <div class="fun-fact">
+                        <h4><i class="fas fa-lightbulb"></i> Zajímavost</h4>
+                        <p>Afrika je domovem nejrychlejšího suchozemského zvířete - geparda.</p>
+                    </div>
+                    <p>Afrika je známá svými savanami, pyramidami v Egyptě a rozmanitými jazyky a kulturami.</p>
+                    <ul class="country-list">
+                        <li>Egypt</li>
+                        <li>Nigérie</li>
+                        <li>Jihoafrická republika</li>
+                        <li>Alžírsko</li>
+                        <li>Keňa</li>
+                        <li>Ghana</li>
+                        <li>Maroko</li>
+                        <li>Súdán</li>
+                    </ul>
+                    <div class="timeline">
+                        <h4><i class="fas fa-history"></i> Historické milníky</h4>
+                        <div class="timeline-event"><span class="timeline-year">3100 př. n. l.:</span> Sjednocení Egypta</div>
+                        <div class="timeline-event"><span class="timeline-year">1884:</span> Berlínská konference</div>
+                        <div class="timeline-event"><span class="timeline-year">1960:</span> Rok Afriky - nezávislost mnoha států</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel" id="asia-info">
+                <button class="close-btn" onclick="hideInfo()">×</button>
+                <div class="info-content">
+                    <h2><i class="fas fa-dragon"></i> Asie</h2>
+                    <div class="header-content">
+                        <img src="https://flagcdn.com/w320/cn.png" alt="Asia flag" class="continent-flag">
+                        <p>Asie je největším a nejlidnatějším kontinentem s bohatou historií.</p>
+                    </div>
+                    <div class="stats-container">
+                        <div class="stat-box">
+                            <h3>Rozloha</h3>
+                            <p>44,579,000 km²</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet obyvatel</h3>
+                            <p>~4.7 miliardy</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet zemí</h3>
+                            <p>49</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Klima</h3>
+                            <p>Arktické až tropické</p>
+                        </div>
+                    </div>
+                    <div class="fun-fact">
+                        <h4><i class="fas fa-lightbulb"></i> Zajímavost</h4>
+                        <p>Mount Everest v Asii je nejvyšší horou světa (8 848 m).</p>
+                    </div>
+                    <p>Asie je domovem starověkých civilizací, jako je Čína a Indie, a moderních technologických center, jako je Japonsko.</p>
+                    <ul class="country-list">
+                        <li>Čína</li>
+                        <li>Indie</li>
+                        <li>Japonsko</li>
+                        <li>Rusko (asijská část)</li>
+                        <li>Indonésie</li>
+                        <li>Pákistán</li>
+                        <li>Thajsko</li>
+                        <li>Korea</li>
+                    </ul>
+                    <div class="timeline">
+                        <h4><i class="fas fa-history"></i> Historické milníky</h4>
+                        <div class="timeline-event"><span class="timeline-year">2600 př. n. l.:</span> Civilizace v údolí Indu</div>
+                        <div class="timeline-event"><span class="timeline-year">221 př. n. l.:</span> Sjednocení Číny pod dynastií Čchin</div>
+                        <div class="timeline-event"><span class="timeline-year">1947:</span> Nezávislost Indie</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel" id="australia-info">
+                <button class="close-btn" onclick="hideInfo()">×</button>
+                <div class="info-content">
+                    <h2><i class="fas fa-kiwi-bird"></i> Austrálie</h2>
+                    <div class="header-content">
+                        <img src="https://flagcdn.com/w320/au.png" alt="Australia flag" class="continent-flag">
+                        <p>Austrálie je nejmenším kontinentem, známým svou unikátní faunou.</p>
+                    </div>
+                    <div class="stats-container">
+                        <div class="stat-box">
+                            <h3>Rozloha</h3>
+                            <p>7,692,000 km²</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet obyvatel</h3>
+                            <p>~26 milionů</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet zemí</h3>
+                            <p>14</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Klima</h3>
+                            <p>Pouštní až tropické</p>
+                        </div>
+                    </div>
+                    <div class="fun-fact">
+                        <h4><i class="fas fa-lightbulb"></i> Zajímavost</h4>
+                        <p>Austrálie má více klokanů než lidí.</p>
+                    </div>
+                    <p>Austrálie, často označovaná jako Oceánie, zahrnuje Tichomořské ostrovy a Velký bariérový útes.</p>
+                    <ul class="country-list">
+                        <li>Austrálie</li>
+                        <li>Nový Zéland</li>
+                        <li>Papua-Nová Guinea</li>
+                        <li>Fidži</li>
+                        <li>Samoa</li>
+                        <li>Tonga</li>
+                        <li>Vanuatu</li>
+                        <li>Mikronésie</li>
+                    </ul>
+                    <div class="timeline">
+                        <h4><i class="fas fa-history"></i> Historické milníky</h4>
+                        <div class="timeline-event"><span class="timeline-year">1788:</span> Příchod první britské flotily</div>
+                        <div class="timeline-event"><span class="timeline-year">1901:</span> Vznik Australské federace</div>
+                        <div class="timeline-event"><span class="timeline-year">1975:</span> Nezávislost Papuy-Nové Guineje</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel" id="antarctica-info">
+                <button class="close-btn" onclick="hideInfo()">×</button>
+                <div class="info-content">
+                    <h2><i class="fas fa-icicles"></i> Antarktida</h2>
+                    <div class="header-content">
+                        <img src="https://flagcdn.com/w320/aq.png" alt="Antarctica flag" class="continent-flag">
+                        <p>Antarktida je nejchladnějším kontinentem bez stálého obyvatelstva.</p>
+                    </div>
+                    <div class="stats-container">
+                        <div class="stat-box">
+                            <h3>Rozloha</h3>
+                            <p>14,000,000 km²</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet obyvatel</h3>
+                            <p>~1,000 (výzkumníci)</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Počet zemí</h3>
+                            <p>0</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3>Klima</h3>
+                            <p>Polární</p>
+                        </div>
+                    </div>
+                    <div class="fun-fact">
+                        <h4><i class="fas fa-lightbulb"></i> Zajímavost</h4>
+                        <p>Antarktida obsahuje 70 % světové sladké vody v ledu.</p>
+                    </div>
+                    <p>Antarktida je vědeckým rájem, chráněným mezinárodní smlouvou. Je domovem tučňáků a unikátních ekosystémů.</p>
+                    <div class="timeline">
+                        <h4><i class="fas fa-history"></i> Historické milníky</h4>
+                        <div class="timeline-event"><span class="timeline-year">1820:</span> První potvrzené spatření Antarktidy</div>
+                        <div class="timeline-event"><span class="timeline-year">1911:</span> Amundsen dosáhl Jižního pólu</div>
+                        <div class="timeline-event"><span class="timeline-year">1959:</span> Antarktická smlouva</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="north-america-map"></div>
+        <div class="info-panel" id="country-info">
+            <button class="close-btn" onclick="hideInfo()">×</button>
+            <h2 id="country-name"><i class="fas fa-info-circle"></i> Informace o zemi</h2>
+            <div class="info-content" id="country-content"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script>
+        var naMap = null;
+        var countries = {
+            'Kanada': {
+                position: [56.1304, -106.3468],
+                capital: 'Ottawa',
+                population: '38 milionů',
+                area: '9,984,670 km²',
+                language: 'Angličtina, Francouzština',
+                currency: 'Kanadský dolar (CAD)',
+                flag: 'ca',
+                fact: 'Kanada má nejdelší pobřeží na světě - 202,080 km.',
+                description: 'Kanada je druhá největší země na světě podle rozlohy. Je známá svou nádhernou přírodou, čistými jezery a multikulturní společností. Kanada má dvě úřední jazyky - angličtinu a francouzštinu, přičemž Québec je převážně frankofonní provincie.',
+                history: [
+                    { year: '1867', event: 'Vznik Kanadské konfederace' },
+                    { year: '1931', event: 'Westminsterský statut - nezávislost na Británii' },
+                    { year: '1982', event: 'Kanadská ústava' }
+                ]
+            },
+            'USA': {
+                position: [37.0902, -95.7129],
+                capital: 'Washington, D.C.',
+                population: '331 milionů',
+                area: '9,833,520 km²',
+                language: 'Angličtina',
+                currency: 'Americký dolar (USD)',
+                flag: 'us',
+                fact: 'USA mají největší ekonomiku na světě podle nominálního HDP.',
+                description: 'Spojené státy americké jsou třetí nejlidnatější zemí na světě a jednou z nejvíce rozmanitých zemí jak kulturně, tak geograficky. USA jsou světovou velmocí v oblasti ekonomiky, technologií a kultury.',
+                history: [
+                    { year: '1776', event: 'Deklarace nezávislosti' },
+                    { year: '1787', event: 'Přijetí Ústavy' },
+                    { year: '1861-1865', event: 'Americká občanská válka' },
+                    { year: '1969', event: 'Přistání na Měsíci' }
+                ]
+            },
+            'Mexiko': {
+                position: [23.6345, -102.5528],
+                capital: 'Mexico City',
+                population: '126 milionů',
+                area: '1,964,375 km²',
+                language: 'Španělština',
+                currency: 'Mexické peso (MXN)',
+                flag: 'mx',
+                fact: 'Mexiko je domovem čokolády - Mayové a Aztékové byli první, kdo pěstoval kakaové boby.',
+                description: 'Mexiko je zemí bohatou na historii a kulturu, s dědictvím starověkých civilizací jako byli Mayové a Aztékové. Je známé svou výbornou kuchyní, plážemi a barevnými tradicemi.',
+                history: [
+                    { year: '1325', event: 'Založení Tenochtitlánu (dnešní Mexico City)' },
+                    { year: '1521', event: 'Španělská conquista' },
+                    { year: '1810', event: 'Začátek války za nezávislost' },
+                    { year: '1910', event: 'Mexická revoluce' }
+                ]
+            },
+            'Guatemala': {
+                position: [15.7835, -90.2308],
+                capital: 'Guatemala City',
+                population: '17.9 milionů',
+                area: '108,889 km²',
+                language: 'Španělština',
+                currency: 'Guatemalský quetzal (GTQ)',
+                flag: 'gt',
+                fact: 'Guatemala je domovem mayské civilizace a má největší mayskou populaci v regionu.',
+                description: 'Guatemala je středoamerická země s bohatou mayskou historií a koloniálním dědictvím. Je známá svými vulkány, jezery a barevnými tradicemi.',
+                history: [
+                    { year: '300-900', event: 'Vrchol mayské civilizace' },
+                    { year: '1524', event: 'Španělská conquista' },
+                    { year: '1821', event: 'Nezávislost na Španělsku' }
+                ]
+            },
+            'Kuba': {
+                position: [21.5218, -77.7812],
+                capital: 'Havana',
+                population: '11.3 milionů',
+                area: '109,884 km²',
+                language: 'Španělština',
+                currency: 'Kubánské peso (CUP)',
+                flag: 'cu',
+                fact: 'Kuba je největším ostrovem v Karibiku.',
+                description: 'Kuba je karibský ostrovní stát známý svou revolucí, cigary, rumem, hudbou a koloniální architekturou.',
+                history: [
+                    { year: '1492', event: 'Objevení Kryštofem Kolumbem' },
+                    { year: '1898', event: 'Španělsko-americká válka' },
+                    { year: '1959', event: 'Kubánská revoluce' }
+                ]
+            }
+        };
+
+        function showInfo(continent) {
+            document.querySelectorAll('.info-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+            document.getElementById(continent + '-info').style.display = 'block';
+        }
+
+        function hideInfo() {
+            document.querySelectorAll('.info-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+        }
+
+        function showNorthAmericaMap() {
+            hideInfo();
+            document.getElementById('world-map').style.display = 'none';
+            document.getElementById('north-america-map').style.display = 'block';
+            document.getElementById('backBtn').style.display = 'block';
+
+            if (!naMap) {
+                naMap = L.map('north-america-map').setView([30, -100], 3);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(naMap);
+
+                var naBounds = L.latLngBounds(
+                    L.latLng(7, -172),
+                    L.latLng(84, -52)
+                );
+
+                var northAmerica = L.polygon([
+                    [[7, -172], [84, -172], [84, -52], [7, -52], [7, -172]]
+                ], {
+                    color: '#3498db',
+                    fillColor: '#3498db',
+                    fillOpacity: 0.3,
+                    weight: 2
+                }).addTo(naMap);
+
+                northAmerica.on('mouseover', function() {
+                    this.setStyle({fillOpacity: 0.5});
+                });
+                northAmerica.on('mouseout', function() {
+                    this.setStyle({fillOpacity: 0.3});
+                });
+
+                for (var country in countries) {
+                    var marker = L.marker(countries[country].position, {
+                        title: country,
+                        riseOnHover: true
+                    }).addTo(naMap);
+
+                    marker.on('click', function(e) {
+                        var countryName = e.target.options.title;
+                        showCountryInfo(countryName);
+                    });
+
+                    marker.bindTooltip(country, {
+                        permanent: false,
+                        direction: 'top',
+                        className: 'country-tooltip'
+                    });
+                }
+
+                naMap.flyToBounds(naBounds, { duration: 1, easeLinearity: 0.5 });
+            }
+        }
+
+        function showWorldMap() {
+            if (naMap) {
+                naMap.remove();
+                naMap = null;
+            }
+            document.getElementById('world-map').style.display = 'block';
+            document.getElementById('north-america-map').style.display = 'none';
+            document.getElementById('backBtn').style.display = 'none';
+            hideInfo();
+        }
+
+        function showCountryInfo(countryName) {
+            var country = countries[countryName];
+
+            document.getElementById('country-name').innerHTML =
+                `<i class="fas fa-info-circle"></i> ${countryName}`;
+
+            var timelineHTML = '';
+            if (country.history && country.history.length > 0) {
+                timelineHTML = `
+                    <div class="timeline">
+                        <h4><i class="fas fa-history"></i> Historické milníky</h4>
+                        ${country.history.map(event => `
+                            <div class="timeline-event">
+                                <span class="timeline-year">${event.year}:</span> ${event.event}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            document.getElementById('country-content').innerHTML = `
+                <div class="header-content">
+                    <img src="https://flagcdn.com/w320/${country.flag}.png"
+                         alt="${countryName} flag" class="country-flag">
+                    <div>
+                        <h3>${country.capital}</h3>
+                        <p><i class="fas fa-map-marker-alt"></i> ${country.position[0].toFixed(4)}°N, ${country.position[1].toFixed(4)}°W</p>
+                    </div>
+                </div>
+                <div class="stats-container">
+                    <div class="stat-box">
+                        <h3>Hlavní město</h3>
+                        <p>${country.capital}</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Populace</h3>
+                        <p>${country.population}</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Rozloha</h3>
+                        <p>${country.area}</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Úřední jazyk</h3>
+                        <p>${country.language}</p>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Měna</h3>
+                        <p>${country.currency}</p>
+                    </div>
+                </div>
+                <div class="fun-fact">
+                    <h4><i class="fas fa-lightbulb"></i> Zajímavost</h4>
+                    <p>${country.fact}</p>
+                </div>
+                <p>${country.description}</p>
+                ${timelineHTML}
+                <div class="panel-footer">
+                    <i class="fas fa-info-circle"></i> Data jsou přibližná a mohou se měnit
+                </div>
+            `;
+
+            document.getElementById('country-info').style.display = 'block';
+        }
+
+        document.getElementById('backBtn').addEventListener('click', function() {
+            showWorldMap();
+        });
+
+        document.addEventListener('click', function(event) {
+            var panel = document.getElementById('country-info');
+            if (event.target === panel) {
+                hideInfo();
+            }
+        });
+    </script>
+</body>
+</html>
